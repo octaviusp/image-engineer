@@ -1,0 +1,22 @@
+[project]
+name = "image-engineer"
+version = "0.1.0"
+description = "The most advanced Agent Engineer to handle complex images tasks as analyze, create, all with Gemini API package."
+authors = [
+    {name = "octaviopavon",email = "octavio.pavon@botman-ai.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow (>=11.1.0,<12.0.0)",
+    "google-genai (>=1.9.0,<2.0.0)",
+    "pydantic (>=2.11.3,<3.0.0)",
+    "pydantic-settings (>=2.8.1,<3.0.0)",
+    "colorama (>=0.4.6,<0.5.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
