@@ -80,6 +80,39 @@ async def get_segmentation():
     except Exception as e:
         print(Fore.RED + f"Error retrieving segmentation: {e}")
 
+async def generate_video_from_prompt():
+    prompt = input(Fore.YELLOW + "Enter your video generation prompt: ")
+    output_path = input(Fore.YELLOW + "Enter output video filename (e.g., output_video.mp4): ")
+    print(Fore.CYAN + "Generating video from prompt...")
+    try:
+        await gemini_client.generate_video_from_prompt(prompt, output_path)
+        print(Fore.GREEN + f"Video saved as {output_path}")
+    except Exception as e:
+        print(Fore.RED + f"Error generating video from prompt: {e}")
+
+async def generate_video_from_image():
+    image_path = input(Fore.YELLOW + "Enter the path of the image: ")
+    prompt = input(Fore.YELLOW + "Enter your video generation prompt: ")
+    output_path = input(Fore.YELLOW + "Enter output video filename (e.g., output_video.mp4): ")
+    print(Fore.CYAN + "Generating video from image...")
+    try:
+        await gemini_client.generate_video_from_image(image_path, prompt, output_path)
+        print(Fore.GREEN + f"Video saved as {output_path}")
+    except Exception as e:
+        print(Fore.RED + f"Error generating video from image: {e}")
+
+async def create_commercial_ad():
+    image_path = input(Fore.YELLOW + "Enter the path of the product image: ")
+    output_path = input(Fore.YELLOW + "Enter output video filename (e.g., commercial.mp4): ")
+    skip_image_creation = input(Fore.YELLOW + "Skip image creation? (y/n): ")
+    print(Fore.CYAN + "Creating commercial ad...")
+    try:
+        description = await gemini_client.describe_image(image_path)
+        await gemini_client.generate_video_from_image(image_path, description, output_path, skip_image_creation=skip_image_creation)
+        print(Fore.GREEN + f"Commercial ad video saved as {output_path}")
+    except Exception as e:
+        print(Fore.RED + f"Error creating commercial ad: {e}")
+
 async def main_menu():
     display_banner()
     while True:
@@ -90,8 +123,11 @@ async def main_menu():
         print(Fore.BLUE + "4. Describe Image")
         print(Fore.BLUE + "5. Get Bounding Boxes")
         print(Fore.BLUE + "6. Get Segmentation Masks")
-        print(Fore.BLUE + "7. Quit")
-        choice = input(Fore.YELLOW + "\nEnter your choice (1-7): ")
+        print(Fore.BLUE + "7. Generate Video from Prompt")
+        print(Fore.BLUE + "8. Generate Video from Image")
+        print(Fore.BLUE + "9. Create Commercial Ad")
+        print(Fore.BLUE + "10. Quit")
+        choice = input(Fore.YELLOW + "\nEnter your choice (1-10): ")
         
         if choice == "1":
             await generate_text()
@@ -106,6 +142,12 @@ async def main_menu():
         elif choice == "6":
             await get_segmentation()
         elif choice == "7":
+            await generate_video_from_prompt()
+        elif choice == "8":
+            await generate_video_from_image()
+        elif choice == "9":
+            await create_commercial_ad()
+        elif choice == "10":
             print(Fore.MAGENTA + "Exiting. Goodbye!")
             break
         else:
