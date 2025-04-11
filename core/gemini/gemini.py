@@ -6,13 +6,20 @@ import time
 from PIL import Image
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 from settings import settings  # Ensure this file defines GOOGLE_API_KEY, TEMPERATURE, MAX_TOKENS
+
+class BaseResponse(BaseModel):
+    response: str
+
+class ImagePromptResponse(BaseModel):
+    image_prompt: str
 
 class GeminiAsyncClient:
     def __init__(self):
         self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
-    async def ainvoke(self, prompt: str) -> str:
+    async def raw_ainvoke(self, prompt: str) -> str:
         """
         Invoke the Gemini model asynchronously with the given text prompt.
         """
@@ -25,6 +32,22 @@ class GeminiAsyncClient:
             )
         )
         return response.text
+
+    async def ainvoke(self, prompt: str, schema: BaseModel = BaseResponse) -> BaseModel:
+        """
+        Invoke the Gemini model asynchronously with the given text prompt.
+        """
+        response = await self.client.aio.models.generate_content(
+            model=settings.GOOGLE_FAST_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=settings.TEMPERATURE,
+                max_output_tokens=settings.MAX_TOKENS,
+                response_mime_type="application/json",
+                response_schema=schema
+            )
+        )
+        return response.parsed
 
     async def describe_image(self, image_path: str) -> str:
         """
@@ -59,7 +82,7 @@ class GeminiAsyncClient:
         """
         Create an image using the Gemini model based on the provided prompt.
         """
-        contents = [types.UserContent(parts=[types.Part.from_text(text=prompt)])]
+        contents = [types.UserContent(parts=[types.Part.from_text(text=" - Create the following image based on the following prompt: " + prompt)])]
         try:
             response = await self.client.aio.models.generate_content(
                 model=settings.GOOGLE_IMAGE_GENERATION_MODEL,
@@ -92,9 +115,11 @@ class GeminiAsyncClient:
                     ]
                 )
             )
+
+            print(response)
         except Exception as e:
             raise RuntimeError(f"Image generation failed: {e}")
-
+        
         if not response or not response.candidates:
             raise ValueError("No candidates received from Gemini model for image generation.")
 
@@ -125,7 +150,7 @@ class GeminiAsyncClient:
             )
 
             while not operation.done:
-                time.sleep(20)
+                time.sleep(5)
                 operation = self.client.operations.get(operation)
 
             response = operation.response   

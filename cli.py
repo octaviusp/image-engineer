@@ -2,6 +2,10 @@ import asyncio
 import json
 from colorama import init, Fore, Style
 from core import gemini_client
+from core.gemini.gemini import ImagePromptResponse
+from core.video_handling import video_operations
+from core.sound_handling import sounds
+from moviepy.editor import VideoFileClip, AudioClip
 
 # Initialize colorama for beautiful colors
 init(autoreset=True)
@@ -21,7 +25,7 @@ async def generate_text():
     prompt = input(Fore.YELLOW + "Enter your text prompt: ")
     print(Fore.CYAN + "Generating text response...")
     try:
-        result = await gemini_client.ainvoke(prompt)
+        result = await gemini_client.raw_ainvoke(prompt)
         print(Fore.GREEN + "\nResponse:")
         print(result)
     except Exception as e:
@@ -112,6 +116,69 @@ async def create_commercial_ad():
         print(Fore.GREEN + f"Commercial ad video saved as {output_path}")
     except Exception as e:
         print(Fore.RED + f"Error creating commercial ad: {e}")
+async def prompt_to_commercial_ad():
+    try:
+        # Step 1: Get full product strategy from user
+        product_strategy_path = input(Fore.YELLOW + "Enter your full product strategy txt path: ")
+        base_filename = input(Fore.YELLOW + "Enter base filename for all outputs (e.g., commercial): ")
+
+        product_image_filename = f"./images/{base_filename}.png"
+        sound_effect_filename = f"./sounds/{base_filename}.mp3"
+        video_filename = f"./videos/{base_filename}.mp4"
+        final_video_filename = f"./videos/{base_filename}_final.mp4"
+        silent_audio_filename = "./sounds/silent_audio.mp3"
+
+        with open(product_strategy_path, 'r') as file:
+            product_strategy = file.read()
+        # Step 2: Generate product image
+        image_prompt = f"Given this product strategy: {product_strategy}, generate a prompt to send to an AI image generator to create a highly professional image of the product, just answer that prompt ready to copy and paste into the image generator prompt. Do not include any other text or comments."
+        image_creation_prompt = await gemini_client.raw_ainvoke(image_prompt)
+        print(Fore.CYAN + "Generating product image...")
+        product_image = await gemini_client.create_image(image_creation_prompt)
+        product_image.save(product_image_filename)
+        print(Fore.GREEN + f"Product image saved as {product_image_filename}")
+        
+        # Step 3: Generate commercial ad strategy using the product strategy
+        ad_prompt = f"Given this product strategy: {product_strategy}, create a fully professional ad storytelling plan. Describe step by step what the ad should show, including visual effects and transitions."
+        print(Fore.CYAN + "Generating commercial ad strategy...")
+        ad_strategy = await gemini_client.raw_ainvoke(ad_prompt)
+        print(Fore.GREEN + "Commercial ad strategy generated.")
+        
+        # Step 4: Generate commercial ad video from the ad strategy
+        print(Fore.CYAN + "Generating commercial ad video...")
+        await gemini_client.generate_video_from_prompt(ad_strategy, video_filename)
+        print(Fore.GREEN + f"Commercial ad video saved as {video_filename}")
+        
+        # Step 5: Generate sound effect for the ad using the ad strategy
+        sound_effect_prompt = f"Given this ad strategy: {ad_strategy}\n, create a concise sound effect prompt to be used in the background of the ad that captures its emotion and message. This prompt will be used to generate a sound effect using an AI sound effect generator. So just return the prompt ready to copy and paste into the sound effect generator prompt."
+
+        sound_effect_prompt_concise = await gemini_client.raw_ainvoke(sound_effect_prompt)
+        print(Fore.CYAN + "Generating sound effect...")
+        try:
+            clip = VideoFileClip(video_filename)
+            video_duration = int(clip.duration)
+            clip.close()
+        except Exception:
+            video_duration = 10  # Fallback duration if video length isn't obtainable
+        sound_bytes = await sounds.text_to_effect(sound_effect_prompt_concise, duration_seconds=video_duration)
+        with open(sound_effect_filename, "wb") as f:
+            f.write(sound_bytes)
+        print(Fore.GREEN + f"Sound effect saved as {sound_effect_filename}")
+        
+        # Step 6: Merge the video and sound effect using video handling
+        clip = VideoFileClip(video_filename)
+        duration = clip.duration
+        clip.close()
+        # Create a silent audio file to serve as the primary audio track
+        silent_audio = AudioClip(lambda t: 0, duration=duration, fps=44100)
+        silent_audio.write_audiofile(silent_audio_filename, verbose=False, logger=None)
+        
+        print(Fore.CYAN + "Merging video with generated sound effect...")
+        video_operations.add_audio_to_video(video_filename, silent_audio_filename, sound_effect_filename, final_video_filename, start_time=0)
+        print(Fore.GREEN + f"Final commercial ad with sound saved as {final_video_filename}")
+        
+    except Exception as e:
+        print(Fore.RED + f"Error in Prompt-to-commercial-ad pipeline: {e}")
 
 async def main_menu():
     display_banner()
@@ -126,8 +193,9 @@ async def main_menu():
         print(Fore.BLUE + "7. Generate Video from Prompt")
         print(Fore.BLUE + "8. Generate Video from Image")
         print(Fore.BLUE + "9. Create Commercial Ad")
-        print(Fore.BLUE + "10. Quit")
-        choice = input(Fore.YELLOW + "\nEnter your choice (1-10): ")
+        print(Fore.BLUE + "10. Prompt-to-commercial-ad")
+        print(Fore.BLUE + "11. Quit")
+        choice = input(Fore.YELLOW + "\nEnter your choice (1-11): ")
         
         if choice == "1":
             await generate_text()
@@ -148,6 +216,8 @@ async def main_menu():
         elif choice == "9":
             await create_commercial_ad()
         elif choice == "10":
+            await prompt_to_commercial_ad()
+        elif choice == "11":
             print(Fore.MAGENTA + "Exiting. Goodbye!")
             break
         else:

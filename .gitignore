@@ -147,3 +147,11 @@ cython_debug/
 *.flv
 *.webm
 *.mkv
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
+*.m4b
+*.txt
